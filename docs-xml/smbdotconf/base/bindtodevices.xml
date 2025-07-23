@@ -1,0 +1,12 @@
+<samba:parameter name="bind to devices"
+                 type="boolean"
+                 context="G"
+                 xmlns:samba="http://www.samba.org/samba/DTD/samba-doc">
+<description>
+	<para>
+    Allows samba to bind to interfaces without ip and mask
+	</para>
+
+</description>
+<value type="default">no</value>
+</samba:parameter>

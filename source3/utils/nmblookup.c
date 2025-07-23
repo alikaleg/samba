@@ -51,7 +51,7 @@ static bool open_sockets(void)
 		return false;
 	}
 	ServerFD = open_socket_in(
-		SOCK_DGRAM, &ss, (RootPort ? 137 : 0), true);
+		SOCK_DGRAM, &ss, (RootPort ? 137 : 0), true, NULL, false);
 	if (ServerFD < 0) {
 		if (RootPort) {
 			DBG_ERR("open_socket_in failed: %s\n",

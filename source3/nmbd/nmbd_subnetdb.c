@@ -1,23 +1,23 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
    NBT netbios routines and daemon - version 2
    Copyright (C) Andrew Tridgell 1994-1998
    Copyright (C) Luke Kenneth Casson Leighton 1994-1998
    Copyright (C) Jeremy Allison 1994-1998
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-   
+
    Revision History:
 
 */
@@ -81,7 +81,7 @@ void close_subnet(struct subnet_record *subrec)
   ****************************************************************************/
 
 static struct subnet_record *make_subnet(const char *name, enum subnet_type type,
-					 struct in_addr myip, struct in_addr bcast_ip, 
+					 struct in_addr myip, struct in_addr bcast_ip,
 					 struct in_addr mask_ip)
 {
 	struct subnet_record *subrec = NULL;
@@ -108,7 +108,7 @@ static struct subnet_record *make_subnet(const char *name, enum subnet_type type
 		 */
 
 		nmb_sock = open_socket_in(
-			SOCK_DGRAM, &ss, global_nmb_port, true);
+			SOCK_DGRAM, &ss, global_nmb_port, true, NULL, false);
 		if (nmb_sock < 0) {
 			DBG_ERR("Failed to open nmb socket on interface %s "
 				"for port %d: %s\n",
@@ -122,7 +122,7 @@ static struct subnet_record *make_subnet(const char *name, enum subnet_type type
 
 		if (bind_bcast) {
 			nmb_bcast = open_socket_in(
-				SOCK_DGRAM, &ss_bcast, global_nmb_port, true);
+				SOCK_DGRAM, &ss_bcast, global_nmb_port, true, NULL, false);
 			if (nmb_bcast < 0) {
 				DBG_ERR("Failed to open nmb bcast socket on "
 					"interface %s for port %d: %s\n",
@@ -135,7 +135,7 @@ static struct subnet_record *make_subnet(const char *name, enum subnet_type type
 			set_blocking(nmb_bcast, false);
 		}
 
-		dgram_sock = open_socket_in(SOCK_DGRAM, &ss, DGRAM_PORT, true);
+		dgram_sock = open_socket_in(SOCK_DGRAM, &ss, DGRAM_PORT, true, NULL, false);
 		if (dgram_sock < 0) {
 			DBG_ERR("Failed to open dgram socket on "
 				"interface %s for port %d: %s\n",
@@ -149,7 +149,7 @@ static struct subnet_record *make_subnet(const char *name, enum subnet_type type
 
 		if (bind_bcast) {
 			dgram_bcast = open_socket_in(
-				SOCK_DGRAM, &ss_bcast, DGRAM_PORT, true);
+				SOCK_DGRAM, &ss_bcast, DGRAM_PORT, true, NULL, false);
 			if (dgram_bcast < 0) {
 				DBG_ERR("Failed to open dgram bcast socket on "
 					"interface %s for port %d: %s\n",
@@ -168,7 +168,7 @@ static struct subnet_record *make_subnet(const char *name, enum subnet_type type
 		DEBUG(0,("make_subnet: malloc fail !\n"));
 		goto failed;
 	}
-  
+
 	ZERO_STRUCTP(subrec);
 
 	if((subrec->subnet_name = SMB_STRDUP(name)) == NULL) {
@@ -179,10 +179,10 @@ static struct subnet_record *make_subnet(const char *name, enum subnet_type type
 	DEBUG(2, ("making subnet name:%s ", name ));
 	DEBUG(2, ("Broadcast address:%s ", inet_ntoa(bcast_ip)));
 	DEBUG(2, ("Subnet mask:%s\n", inet_ntoa(mask_ip)));
- 
+
 	subrec->namelist_changed = False;
 	subrec->work_changed = False;
- 
+
 	subrec->bcast_ip = bcast_ip;
 	subrec->mask_ip  = mask_ip;
 	subrec->myip = myip;
@@ -356,7 +356,7 @@ bool create_subnets(void)
 	 * the WINS server address, if it exists, or ipzero if not.
 	 */
 
-	unicast_subnet = make_subnet( "UNICAST_SUBNET", UNICAST_SUBNET, 
+	unicast_subnet = make_subnet( "UNICAST_SUBNET", UNICAST_SUBNET,
 				unicast_ip, unicast_ip, unicast_ip);
 
 	zero_ip_v4(&ipzero);
@@ -368,14 +368,14 @@ bool create_subnets(void)
 	if((unicast_subnet == NULL) || (remote_broadcast_subnet == NULL))
 		return False;
 
-	/* 
+	/*
 	 * If we are WINS server, create the WINS_SERVER_SUBNET - don't put on
 	 * the linked list.
 	 */
 
 	if (lp_we_are_a_wins_server()) {
 		if( (wins_server_subnet = make_subnet( "WINS_SERVER_SUBNET",
-						WINS_SERVER_SUBNET, 
+						WINS_SERVER_SUBNET,
 						ipzero, ipzero, ipzero )) == NULL )
 			return False;
 	}

@@ -50,6 +50,7 @@
 #include "lib/background.h"
 #include "../lib/util/pidfile.h"
 #include "lib/smbd_shim.h"
+#include "lib/interface.h"
 #include "scavenger.h"
 #include "locking/leases_db.h"
 #include "smbd/notifyd/notifyd.h"
@@ -1081,8 +1082,10 @@ static void smbd_accept_connection(struct tevent_context *ev,
 
 static bool smbd_open_one_socket(struct smbd_parent_context *parent,
 				 struct tevent_context *ev_ctx,
-				 const struct sockaddr_storage *ifss,
-				 uint16_t port)
+				 const struct sockaddr_storage *paddr,
+				 uint16_t port,
+				 char* iface_name,
+				 bool dual_stack)
 {
 	struct smbd_open_socket *s;
 
@@ -1092,8 +1095,7 @@ static bool smbd_open_one_socket(struct smbd_parent_context *parent,
 	}
 
 	s->parent = parent;
-
-	s->fd = open_socket_in(SOCK_STREAM, ifss, port, true);
+	s->fd = open_socket_in(SOCK_STREAM, paddr, port, true, iface_name, dual_stack);
 	if (s->fd < 0) {
 		int err = -(s->fd);
 		DBG_ERR("open_socket_in failed: %s\n", strerror(err));
@@ -1188,13 +1190,25 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 		/* Now open a listen socket for each of the
 		   interfaces. */
 		for(i = 0; i < num_interfaces; i++) {
-			const struct sockaddr_storage *ifss =
-					iface_n_sockaddr_storage(i);
+			struct sockaddr_storage *ifss = iface_n_sockaddr_storage(i);
+			const struct interface *iface;
+			char* iface_name = NULL;
+			bool dual_stack = false;
+
 			if (ifss == NULL) {
 				DEBUG(0,("open_sockets_smbd: "
 					"interface %d has NULL IP address !\n",
 					i));
 				continue;
+			}
+			iface = get_interface(i);
+
+			if (lp_bind_to_devices()) {
+				iface_name = iface->name;
+				if (ifss->ss_family == AF_UNSPEC) {
+					ifss->ss_family = AF_INET6;
+					dual_stack = true;
+				}
 			}
 
 			for (j = 0; ports && ports[j]; j++) {
@@ -1210,7 +1224,9 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 				if (!smbd_open_one_socket(parent,
 							  ev_ctx,
 							  ifss,
-							  port)) {
+							  port,
+							  iface_name,
+							  dual_stack)) {
 					return false;
 				}
 			}
@@ -1257,7 +1273,9 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 				(void)smbd_open_one_socket(parent,
 						  ev_ctx,
 						  &ss,
-						  port);
+						  port,
+						  NULL,
+						  false);
 			}
 		}
 	}
@@ -1593,7 +1611,9 @@ static bool smbd_open_socket_for_ip(struct smbd_parent_context *parent,
 		if (!smbd_open_one_socket(parent,
 					  ev_ctx,
 					  ifss,
-					  port)) {
+					  port,
+					  NULL,
+					  false)) {
 			status = false;
 			goto out_free;
 		}

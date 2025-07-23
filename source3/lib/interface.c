@@ -22,6 +22,7 @@
 #include "lib/socket/interfaces.h"
 #include "librpc/gen_ndr/ioctl.h"
 #include "lib/util/smb_strtox.h"
+#include "lib/util/debug.h"
 
 static struct iface_struct *probed_ifaces;
 static int total_probed;
@@ -313,7 +314,7 @@ static void add_interface(const struct iface_struct *ifs)
 		return;
 	}
 
-	if (!(ifs->flags & (IFF_BROADCAST|IFF_LOOPBACK))) {
+	if (!(ifs->flags & (IFF_BROADCAST|IFF_LOOPBACK|IFF_MASTER))) {
 		DEBUG(3,("not adding non-broadcast interface %s\n",
 					ifs->name ));
 		return;
@@ -596,8 +597,8 @@ static void interpret_interface(char *token)
 	if (sockaddr_equal((struct sockaddr *)&ss_bcast, (struct sockaddr *)&ss) ||
 		sockaddr_equal((struct sockaddr *)&ss_net, (struct sockaddr *)&ss)) {
 		for (i=0;i<total_probed;i++) {
-			if (same_net((struct sockaddr *)&ss, 
-						 (struct sockaddr *)&probed_ifaces[i].ip, 
+			if (same_net((struct sockaddr *)&ss,
+						 (struct sockaddr *)&probed_ifaces[i].ip,
 						 (struct sockaddr *)&ss_mask)) {
 				/* Temporarily replace netmask on
 				 * the detected interface - user knows

@@ -25,6 +25,8 @@
 #include "interfaces.h"
 #include "lib/util/tsort.h"
 #include "librpc/gen_ndr/ioctl.h"
+#include <net/if.h>
+#include <netinet/in.h>
 
 #ifdef HAVE_ETHTOOL
 #include "linux/sockios.h"
@@ -235,9 +237,6 @@ static int _get_interfaces(TALLOC_CTX *mem_ctx, struct iface_struct **pifaces)
 
 	count = 0;
 	for (ifptr = iflist; ifptr != NULL; ifptr = ifptr->ifa_next) {
-		if (!ifptr->ifa_addr || !ifptr->ifa_netmask) {
-			continue;
-		}
 		if (!(ifptr->ifa_flags & IFF_UP)) {
 			continue;
 		}
@@ -255,10 +254,6 @@ static int _get_interfaces(TALLOC_CTX *mem_ctx, struct iface_struct **pifaces)
 		uint64_t if_speed = 1000 * 1000 * 1000; /* 1Gbps */
 		uint64_t rx_queues = 1;
 
-		if (!ifptr->ifa_addr || !ifptr->ifa_netmask) {
-			continue;
-		}
-
 		/* Check the interface is up. */
 		if (!(ifptr->ifa_flags & IFF_UP)) {
 			continue;
@@ -271,17 +266,19 @@ static int _get_interfaces(TALLOC_CTX *mem_ctx, struct iface_struct **pifaces)
 		ifaces[total].flags = ifptr->ifa_flags;
 
 #if defined(HAVE_IPV6)
-		if (ifptr->ifa_addr->sa_family == AF_INET6) {
+		if (ifptr->ifa_addr != NULL && ifptr->ifa_addr->sa_family == AF_INET6) {
 			copy_size = sizeof(struct sockaddr_in6);
 		}
 #endif
 
-		memcpy(&ifaces[total].ip, ifptr->ifa_addr, copy_size);
-		memcpy(&ifaces[total].netmask, ifptr->ifa_netmask, copy_size);
+		if (ifptr->ifa_addr != NULL && ifptr->ifa_netmask != NULL) {
+			memcpy(&ifaces[total].ip, ifptr->ifa_addr, copy_size);
+			memcpy(&ifaces[total].netmask, ifptr->ifa_netmask, copy_size);
+		}
 
 		/* calculate broadcast address */
 #if defined(HAVE_IPV6)
-		if (ifptr->ifa_addr->sa_family == AF_INET6) {
+		if (ifptr->ifa_addr != NULL && ifptr->ifa_addr->sa_family == AF_INET6) {
 			struct sockaddr_in6 *sin6 =
 				(struct sockaddr_in6 *)ifptr->ifa_addr;
 			struct in6_addr *in6 =
@@ -303,7 +300,7 @@ static int _get_interfaces(TALLOC_CTX *mem_ctx, struct iface_struct **pifaces)
 			memcpy(&ifaces[total].bcast,
 				ifptr->ifa_dstaddr,
 				copy_size);
-		} else {
+		} else if (!(ifaces[total].flags & IFF_MASTER)) {
 			continue;
 		}
 
@@ -399,7 +396,7 @@ static int iface_comp(struct iface_struct *i1, struct iface_struct *i2)
 		}
 		return r;
 	}
-	return 0;
+	return strcmp(i1->name, i2->name);
 }
 
 /* this wrapper is used to remove duplicates from the interface list generated

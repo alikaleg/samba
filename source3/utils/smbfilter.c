@@ -284,7 +284,7 @@ static void start_filter(char *desthost)
 	/* start listening on port 445 locally */
 
 	zero_sockaddr(&my_ss);
-	s = open_socket_in(SOCK_STREAM, &my_ss, TCP_SMB_PORT, true);
+	s = open_socket_in(SOCK_STREAM, &my_ss, TCP_SMB_PORT, true, NULL, false);
 
 	if (s < 0) {
 		d_printf("bind failed: %s\n", strerror(-s));

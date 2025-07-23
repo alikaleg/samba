@@ -698,6 +698,7 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 	Globals.lm_interval = 60;
 	Globals.time_server = false;
 	Globals.bind_interfaces_only = false;
+	Globals.bind_to_devices = false;
 	Globals.unix_password_sync = false;
 	Globals.pam_password_change = false;
 	Globals.passwd_chat_debug = false;

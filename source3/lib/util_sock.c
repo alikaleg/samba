@@ -31,6 +31,8 @@
 #include "lib/util/sys_rw.h"
 #include "lib/util/sys_rw_data.h"
 #include "source3/lib/util_tsock.h"
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 /****************************************************************************
  Determine if a file descriptor is in fact a socket.
@@ -245,7 +247,9 @@ int open_socket_in(
 	int type,
 	const struct sockaddr_storage *paddr,
 	uint16_t port,
-	bool rebind)
+	bool rebind,
+	char* iface_name,
+	bool dual_stack)
 {
 	struct samba_sockaddr addr = {
 		.sa_socklen = sizeof(struct sockaddr_storage),
@@ -254,6 +258,7 @@ int open_socket_in(
 	int ret, sock = -1;
 	int val = rebind ? 1 : 0;
 	bool ok;
+	int domain;
 
 	switch (addr.u.sa.sa_family) {
 	case AF_INET6:
@@ -271,7 +276,7 @@ int open_socket_in(
 		goto fail;
 	}
 
-	sock = socket(addr.u.ss.ss_family, type, 0 );
+	sock = socket(addr.u.ss.ss_family, type, 0);
 	if (sock == -1) {
 		ret = -errno;
 		DBG_DEBUG("socket() failed: %s\n", strerror(errno));
@@ -286,6 +291,19 @@ int open_socket_in(
 			  strerror(errno));
 		goto fail;
 	}
+
+	if (iface_name != NULL) {
+		ret = setsockopt(
+			sock, SOL_SOCKET, SO_BINDTODEVICE, iface_name, strlen(iface_name)
+		);
+		if (ret == -1) {
+			ret = -errno;
+			DBG_DEBUG("setsockopt(SO_BINDTODEVICE) failed: %s\n",
+				  strerror(errno));
+			goto fail;
+		}
+	}
+
 
 #ifdef SO_REUSEPORT
 	ret = setsockopt(
@@ -309,7 +327,7 @@ int open_socket_in(
 	 */
 	if (addr.u.ss.ss_family == AF_INET6) {
 
-		val = 1;
+		val = dual_stack ? 0 : 1;
 
 		ret = setsockopt(
 			sock,

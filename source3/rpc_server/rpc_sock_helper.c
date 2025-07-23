@@ -26,6 +26,7 @@
 #include "librpc/rpc/dcesrv_core.h"
 #include "rpc_server/rpc_sock_helper.h"
 #include "librpc/ndr/ndr_table.h"
+#include <sys/socket.h>
 
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_RPC_SRV
@@ -123,7 +124,7 @@ static NTSTATUS dcesrv_create_ncacn_ip_tcp_socket(
 		}
 
 		for (i = low; i <= lp_rpc_high_port(); i++) {
-			fd = open_socket_in(SOCK_STREAM, ifss, i, false);
+			fd = open_socket_in(SOCK_STREAM, ifss, i, false, NULL, false);
 			if (fd >= 0) {
 				*port = i;
 				low = i+1;
@@ -131,7 +132,7 @@ static NTSTATUS dcesrv_create_ncacn_ip_tcp_socket(
 			}
 		}
 	} else {
-		fd = open_socket_in(SOCK_STREAM, ifss, *port, true);
+		fd = open_socket_in(SOCK_STREAM, ifss, *port, true, NULL, false);
 	}
 
 	if (fd < 0) {
