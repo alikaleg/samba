@@ -93,7 +93,7 @@ bool set_conn_connectpath(connection_struct *conn, const char *connectpath)
 bool chdir_current_service(connection_struct *conn)
 {
 	const struct smb_filename connectpath_fname = {
-		.base_name = conn->connectpath,
+		.base_name = "/",
 	};
 	int saved_errno = 0;
 	char *utok_str = NULL;
@@ -769,7 +769,7 @@ NTSTATUS make_connection_snum(struct smbXsrv_connection *xconn,
 		}
 	}
 	smb_fname_cpath = synthetic_smb_fname(talloc_tos(),
-					conn->connectpath,
+					"/",
 					NULL,
 					NULL,
 					0,

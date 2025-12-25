@@ -39,6 +39,7 @@
 #include "smbprofile.h"
 #include "modules/posixacl_xattr.h"
 #include "lib/util/tevent_unix.h"
+#include "lib/util/debug.h"
 
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_VFS
@@ -285,7 +286,8 @@ static int cephmount_update_conf(struct vfs_ceph_config *config,
 }
 
 static struct ceph_mount_info *cephmount_mount_fs(
-	struct vfs_ceph_config *config)
+	struct vfs_ceph_config *config,
+	char *root_path)
 {
 	int ret;
 	struct ceph_mount_info *mnt = NULL;
@@ -338,7 +340,7 @@ static struct ceph_mount_info *cephmount_mount_fs(
 	}
 
 	DBG_DEBUG("[CEPH] calling ceph_mount: mnt=%p\n", mnt);
-	ret = config->ceph_mount_fn(mnt, NULL);
+	ret = config->ceph_mount_fn(mnt, root_path);
 	if (ret < 0) {
 		goto out;
 	}
@@ -550,7 +552,7 @@ static int vfs_ceph_connect(struct vfs_handle_struct *handle,
 		goto connect_ok;
 	}
 
-	mount = cephmount_mount_fs(config);
+	mount = cephmount_mount_fs(config, handle->conn->connectpath);
 	if (mount == NULL) {
 		ret = -1;
 		goto connect_fail;
@@ -2040,7 +2042,7 @@ static int vfs_ceph_check_case_sensitivity(struct vfs_handle_struct *handle,
 	 * that all directories inherit the configuration from the root of the
 	 * share and the administrator doesn't change it manually.
 	 */
-	ret = vfs_ceph_iget(handle, handle->conn->connectpath, 0, &iref);
+	ret = vfs_ceph_iget(handle, "/", 0, &iref);
 	if (ret != 0) {
 		return ret;
 	}
@@ -2053,7 +2055,7 @@ static int vfs_ceph_check_case_sensitivity(struct vfs_handle_struct *handle,
 		if (ret != -ENODATA) {
 			DBG_ERR("[CEPH] failed to get case sensitivity "
 				"settings: path='%s' %s",
-				handle->conn->connectpath, strerror(-ret));
+				"/", strerror(-ret));
 			goto out;
 		}
 
@@ -3036,7 +3038,6 @@ static int vfs_ceph_stat(struct vfs_handle_struct *handle,
 		result = -ENOENT;
 		goto out;
 	}
-
 	result = vfs_ceph_iget(handle, smb_fname->base_name, 0, &iref);
 	if (result != 0) {
 		goto out;
