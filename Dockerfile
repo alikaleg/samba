@@ -52,4 +52,4 @@ RUN dnf install --assumeyes jansson libbsd libicu-devel libcephfs2
 COPY --from=build-samba /usr/local/samba /usr/local/samba
 RUN mkdir -p /var/log/samba/cores
 RUN chmod 700 /var/log/samba/cores
-CMD ["/usr/local/samba/sbin/smbd", "-i"]
+CMD ["/usr/local/samba/sbin/smbd", "--foreground", "--no-process-group"]
